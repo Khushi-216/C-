@@ -1,0 +1,108 @@
+/*
+#include <iostream>
+using namespace std;
+class Student{
+public:
+    int roll, uid;
+    string name;
+    
+    int details(){
+        cout<< "Enter Name, roll number and UID" << endl;
+        cin>> name >> roll >> uid;
+        cout<<"You entered \n"<<"Name: "<<name<<endl<<"Roll No.: "<<roll<<endl<<"UID: "<<uid;
+        return name, roll, uid;
+    }
+    
+};
+int main()
+{
+    Student abc;
+    abc.details();
+}*/
+/*OOP
+Objects 
+Classes 
+Encapsulation
+Absraction
+Inheritance
+Polymorphism
+
+Class
+Syntax- 
+class ClassName {
+public: //Compulsory of c++ - not java
+   // dataType attributes;
+    
+    returnType functionnname(paameters{
+        Func - body
+    }
+#include <iostream>
+
+class Rectangle{
+public:
+    double length, width;
+    
+    double caclArea(){
+        return width * length;
+    }
+    return 0;
+}
+
+#include <iostream>
+using namespace std;
+class Student{
+public:
+    int roll, uid;
+    string name;
+    
+    int details(){
+        cout<< "Enter Name, roll number and UID" << endl;
+        cin>> name >> roll >> uid;
+        cout<<"You entered \n"<<"Name: "<<name<<endl<<"Roll No.: "<<roll<<endl<<"UID: "<<uid;
+        return name, roll, uid;
+    }
+    
+};
+int main()
+{
+    Student abc;    //Object Creation & 
+    abc.details(); // Object Call
+}
+    }
+
+Costructors- 
+Has the same name as the class
+It will always run once atleast when a object is called
+Can have parameters too
+
+
+shortcut methodof setting variables
+
+*/
+#include <iostream>
+using namespace std;
+class Point{
+public:
+    int x,y;
+    Point(int xVal, int yVal): x(xVal), y(yVal) {} //empty constructor, called and assigned in a single line
+    
+    Point (const Point &p) { // Copy Constructor
+        x=p.x;
+        y=p.y;
+    }
+}; //Dont alway need to create a copy constructor as linux usually does the same- also the online compiler
+
+int main(){
+    int a,b;
+    cout<<"Enter a & b"<<endl;
+    cin>>a>>b;
+    Point p1(a,b);
+    Point p2 = p1;
+    cout << p2.x<<","<<p2.y<<endl;
+    return 0;
+}
+/*Public- Private
+
+*/
+
+    
