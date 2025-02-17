@@ -1,0 +1,217 @@
+// Including necessary header files for various functionalities
+#include <iostream>  
+#include <fstream>   
+#include <string>    
+#include <vector>    // For token storage 
+#include <stack>     // For stack operations (used in expression evaluation)
+#include <cctype>    // For character handling functions
+#include <map>       // Similar to dictionarys in Python
+#include <iomanip>   
+#include <sstream>   
+#include <cmath>     // fmod()
+#include <stdexcept> // Exception Handling
+
+// Context class to store variable values
+class Context {
+public:
+    std::map<std::string, double> variables;
+};
+
+// Interpreter to evaluate expressions
+class Interpreter {
+private:
+    Context* context; // Pointer to context to access stored variables
+    std::map<char, int> precedence = {{'+', 1}, {'-', 1}, {'*', 2}, {'/', 2}, {'%', 2}}; // Operator precedence map
+
+
+public:
+// Constructor to initialize context
+    Interpreter(Context* context) : context(context) {}  
+// Interpreting users input
+    std::string interpret(std::string input) {
+        try {
+            trim(input); //removing spaces in the start & end
+            size_t eq_pos = input.find('=');
+            if (eq_pos != std::string::npos) {
+                // If '=' found, treat as variable assignment
+                std::string var = input.substr(0, eq_pos); // Extract variable name
+                std::string expr = input.substr(eq_pos + 1); // Extract assigned expression
+                trim(var); // Remove spaces from variable name
+                trim(expr); // Remove spaces from expression
+                context->variables[var] = evaluateExpression(expr); // Store variable in context
+                return ""; // Return empty string after assignment
+            }
+            // Otherwise, evaluate the expression
+            std::ostringstream stream;
+            stream << std::fixed << std::setprecision(2) << evaluateExpression(input); //2 decimals
+            return stream.str(); //retun as string
+        } catch (const std::exception& e) {
+            return std::string("Error: ") + e.what(); //Error Handling
+        }
+    }
+
+private:
+// Function to evaluate an expression (either variable or calc)
+    double evaluateExpression(const std::string& input) {
+        if (context->variables.find(input) != context->variables.end()) {
+            return context->variables[input];  // Return stored variable value if found
+        }
+        //Checking function calls
+        if (input.find("add(") == 0) {
+            return evaluateFunction(input, "+");
+        } else if (input.find("sub(") == 0) {
+            return evaluateFunction(input, "-");
+        } else if (input.find("mul(") == 0) {
+            return evaluateFunction(input, "*");
+        } else if (input.find("div(") == 0) {
+            return evaluateFunction(input, "/");
+        } else if (input.find("mod(") == 0) {
+            return evaluateFunction(input, "%");
+        }
+        return evaluateMathExpression(tokenize(input)); // Evaluate as a regular math expression
+    }
+
+        // Function to evaluate mathematical functions like add(), sub(), etc.
+    double evaluateFunction(const std::string& input, const std::string& op) {
+        size_t start = input.find('(');
+        size_t end = input.find(')');
+        if (start == std::string::npos || end == std::string::npos || start >= end) {
+            throw std::runtime_error("Invalid function syntax"); //Error Handling
+        }
+        std::string args = input.substr(start + 1, end - start - 1); // Extract function arguments
+        std::vector<std::string> tokens = split(args, ','); // Split arguments by comma
+
+        double result = evaluateExpression(tokens[0]); // Evaluate first argument
+        for (size_t i = 1; i < tokens.size(); ++i) {
+            double value = evaluateExpression(tokens[i]); // Evaluate each additional argument
+            if (op == "+") result += value;
+            else if (op == "-") result -= value;
+            else if (op == "*") result *= value;
+            else if (op == "/") {
+                if (value == 0) throw std::runtime_error("Division by zero");
+                result /= value;
+            } else if (op == "%") {
+                if (value == 0) throw std::runtime_error("Modulo by zero");
+                result = std::fmod(result, value);
+            }
+        }
+        return result;
+    }
+// Function to tokenize the input string into numbers and operators
+    std::vector<std::string> tokenize(const std::string& input) {
+        std::vector<std::string> tokens;
+        std::string token;
+        bool lastWasOperator = true; // Tracks if the last character was an operator
+        for (size_t i = 0; i < input.size(); i++) {
+            char c = input[i];
+// If the character is a digit, decimal, or negative sign at the start of a number
+            if (std::isdigit(c) || c == '.' || (c == '-' && lastWasOperator)) {
+                token += c;
+                lastWasOperator = false;
+            } else {
+                // Push previous token to list if it exists
+                if (!token.empty()) {
+                    tokens.push_back(token);
+                    token.clear();
+                }
+                if (c != ' ') { //Ignoring Space
+                    tokens.push_back(std::string(1, c)); // Add the operator to the token list
+                    lastWasOperator = true;
+                }
+            }
+        }
+        if (!token.empty()) {
+            tokens.push_back(token); //Pushing Last token
+        }
+        return tokens;
+    }
+// Function to evaluate a mathematical expression from tokenized input
+    double evaluateMathExpression(const std::vector<std::string>& tokens) {
+        std::stack<double> values; // Stack to store operand values
+        std::stack<char> operators; // Stack to store operators
+        for (const std::string& token : tokens) {
+            // If token is a number, push to values stack
+            if (std::isdigit(token[0]) || token.find('.') != std::string::npos || (token[0] == '-' && token.size() > 1)) {
+                values.push(std::stod(token));
+            } else if (context->variables.find(token) != context->variables.end()) {
+                values.push(context->variables[token]); // If token is a stored variable, push its value
+            } else if (token == "(") {
+                operators.push('(');  // Push opening parenthesis
+            } else if (token == ")") {
+                // Process operators until matching '(' is found
+                while (!operators.empty() && operators.top() != '(') {
+                    applyOperator(values, operators);
+                }
+                operators.pop(); // Remove '('
+            } else if (precedence.find(token[0]) != precedence.end()) {
+                 // Process operators with higher precedence before pushing new one
+                while (!operators.empty() && operators.top() != '(' && precedence[operators.top()] >= precedence[token[0]]) {
+                    applyOperator(values, operators);
+                }
+                operators.push(token[0]);
+            } else {
+                throw std::runtime_error("Undefined variable or invalid input: " + token);
+            }
+        }
+// Process remaining operators
+        while (!operators.empty()) {
+            applyOperator(values, operators);
+        }
+        return values.top();
+    }
+// Function to apply an operator from the operator stack to operands
+    void applyOperator(std::stack<double>& values, std::stack<char>& operators) {
+        char op = operators.top(); operators.pop();
+        double right = values.top(); values.pop();
+        double left = values.top(); values.pop();
+        switch (op) {
+            case '+': values.push(left + right); break;
+            case '-': values.push(left - right); break;
+            case '*': values.push(left * right); break;
+            case '/': if (right == 0) throw std::runtime_error("Division by zero"); values.push(left / right); break;
+            case '%': if (right == 0) throw std::runtime_error("Modulo by zero"); values.push(std::fmod(left, right)); break;
+        }
+    }
+// Function to remove leading and trailing spaces from a string
+    void trim(std::string& str) {
+        str.erase(0, str.find_first_not_of(" "));
+        str.erase(str.find_last_not_of(" ") + 1);
+    }
+// Function to split a string by a delimiter and return a vector of substrings
+    std::vector<std::string> split(const std::string& str, char delimiter) {
+        std::vector<std::string> tokens;
+        std::stringstream ss(str);
+        std::string token;
+        while (std::getline(ss, token, delimiter)) {
+            trim(token);
+            tokens.push_back(token);
+        }
+        return tokens;
+    }
+};
+
+int main() {
+    Context context; // Create a context to store variables
+    Interpreter interpreter(&context); // Create an interpreter instance
+    std::string input;
+    std::cout<< std::setw(15) <<std::setfill('*') << ""<<std::endl; //Manipulators
+    std::cout << "Hello!! \nWelcome!"<<std::endl; //Welcome Mssg
+    std::ofstream history_final("history_final.txt", std::ios::app);
+    while (true) {
+        //Input Prompt - in loop
+        std::cout << "Enter expression (eg: '10.5 * 4+3' or '10 5 +' or 'mod(10,3)' or 'a=5,b=7,a/b'): ";
+        std::getline(std::cin, input); 
+        // Exit Conditions
+        if (input=="0" ||input=="end"||input=="End"||input=="END"||input=="exit") break;
+        // Interpretting input and storing the result
+        std::string result = interpreter.interpret(input);
+        history_final << "Input: " << input << "\nResult: " << result << "\n"; //in text file
+        //Printing Result 
+        if (!result.empty()) std::cout << "Result: " << result << std::endl;
+    }
+    //Exit mssg
+    std::cout << "Thank You!!"<< std::endl;
+    std::cout<< std::setw(15) <<std::setfill('*') << ""<<std::endl;
+    history_final.close(); //Closing FIle
+    return 0;
+}
